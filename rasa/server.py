@@ -11,6 +11,7 @@ from typing import Any, Callable, List, Optional, Text, Union
 
 from sanic import Sanic, response
 from sanic.request import Request
+from sanic.response import HTTPResponse
 from sanic_cors import CORS
 from sanic_jwt import Initialize, exceptions
 
@@ -46,6 +47,7 @@ from rasa.utils.endpoints import EndpointConfig
 
 if typing.TYPE_CHECKING:
     from ssl import SSLContext
+    from rasa.core.processor import MessageProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -208,14 +210,16 @@ def event_verbosity_parameter(
         )
 
 
-def get_tracker(agent: "Agent", conversation_id: Text) -> DialogueStateTracker:
-    tracker = agent.tracker_store.get_or_create_tracker(conversation_id)
+async def get_tracker(
+    processor: "MessageProcessor", conversation_id: Text
+) -> Optional[DialogueStateTracker]:
+    tracker = await processor.get_tracker_with_session_start(conversation_id)
     if not tracker:
         raise ErrorResponse(
             409,
             "Conflict",
-            "Could not retrieve tracker with id '{}'. Most likely "
-            "because there is no domain set on the agent.".format(conversation_id),
+            f"Could not retrieve tracker with id '{conversation_id}'. Most likely "
+            f"because there is no domain set on the agent.",
         )
     return tracker
 
@@ -438,7 +442,7 @@ def create_app(
         verbosity = event_verbosity_parameter(request, EventVerbosity.AFTER_RESTART)
         until_time = rasa.utils.endpoints.float_arg(request, "until")
 
-        tracker = get_tracker(app.agent, conversation_id)
+        tracker = await get_tracker(app.agent.create_processor(), conversation_id)
 
         try:
             if until_time is not None:
@@ -463,7 +467,32 @@ def create_app(
             "to the state of a conversation.",
         )
 
+        verbosity = event_verbosity_parameter(request, EventVerbosity.AFTER_RESTART)
+
+        try:
+            async with app.agent.lock_store.lock(conversation_id):
+                tracker = await get_tracker(
+                    app.agent.create_processor(), conversation_id
+                )
+
+                # Get events after tracker initialization to ensure that generated
+                # timestamps are after potential session events.
+                events = _get_events_from_request_body(request)
+
+                for event in events:
+                    tracker.update(event, app.agent.domain)
+                app.agent.tracker_store.save(tracker)
+
+            return response.json(tracker.current_state(verbosity))
+        except Exception as e:
+            logger.debug(traceback.format_exc())
+            raise ErrorResponse(
+                500, "ConversationError", f"An unexpected error occurred. Error: {e}"
+            )
+
+    def _get_events_from_request_body(request: Request) -> List[Event]:
         events = request.json
+
         if not isinstance(events, list):
             events = [events]
 
@@ -482,21 +511,7 @@ def create_app(
                 {"parameter": "", "in": "body"},
             )
 
-        verbosity = event_verbosity_parameter(request, EventVerbosity.AFTER_RESTART)
-
-        try:
-            async with app.agent.lock_store.lock(conversation_id):
-                tracker = get_tracker(app.agent, conversation_id)
-                for event in events:
-                    tracker.update(event, app.agent.domain)
-                app.agent.tracker_store.save(tracker)
-
-            return response.json(tracker.current_state(verbosity))
-        except Exception as e:
-            logger.debug(traceback.format_exc())
-            raise ErrorResponse(
-                500, "ConversationError", f"An unexpected error occurred. Error: {e}"
-            )
+        return events
 
     @app.put("/conversations/<conversation_id>/tracker/events")
     @requires_auth(app, auth_token)
@@ -534,7 +549,7 @@ def create_app(
         """Get an end-to-end story corresponding to this conversation."""
 
         # retrieve tracker and set to requested state
-        tracker = get_tracker(app.agent, conversation_id)
+        tracker = await get_tracker(app.agent.create_processor(), conversation_id)
 
         until_time = rasa.utils.endpoints.float_arg(request, "until")
 
@@ -567,13 +582,22 @@ def create_app(
                 {"parameter": "name", "in": "body"},
             )
 
+        # Deprecation warning
+        warnings.warn(
+            "Triggering actions via the execute endpoint is deprecated. "
+            "Trigger an intent via the `/conversations/<conversation_id>/trigger_intent` endpoint instead.",
+            FutureWarning,
+        )
+
         policy = request_params.get("policy", None)
         confidence = request_params.get("confidence", None)
         verbosity = event_verbosity_parameter(request, EventVerbosity.AFTER_RESTART)
 
         try:
             async with app.agent.lock_store.lock(conversation_id):
-                tracker = get_tracker(app.agent, conversation_id)
+                tracker = await get_tracker(
+                    app.agent.create_processor(), conversation_id
+                )
                 output_channel = _get_output_channel(request, tracker)
                 await app.agent.execute_action(
                     conversation_id,
@@ -589,7 +613,61 @@ def create_app(
                 500, "ConversationError", f"An unexpected error occurred. Error: {e}"
             )
 
-        tracker = get_tracker(app.agent, conversation_id)
+        tracker = await get_tracker(app.agent.create_processor(), conversation_id)
+        state = tracker.current_state(verbosity)
+
+        response_body = {"tracker": state}
+
+        if isinstance(output_channel, CollectingOutputChannel):
+            response_body["messages"] = output_channel.messages
+
+        return response.json(response_body)
+
+    @app.post("/conversations/<conversation_id>/trigger_intent")
+    @requires_auth(app, auth_token)
+    @ensure_loaded_agent(app)
+    async def trigger_intent(request: Request, conversation_id: Text) -> HTTPResponse:
+        request_params = request.json
+
+        intent_to_trigger = request_params.get("name")
+        entities = request_params.get("entities", [])
+
+        if not intent_to_trigger:
+            raise ErrorResponse(
+                400,
+                "BadRequest",
+                "Name of the intent not provided in request body.",
+                {"parameter": "name", "in": "body"},
+            )
+
+        verbosity = event_verbosity_parameter(request, EventVerbosity.AFTER_RESTART)
+
+        try:
+            async with app.agent.lock_store.lock(conversation_id):
+                tracker = await get_tracker(
+                    app.agent.create_processor(), conversation_id
+                )
+                output_channel = _get_output_channel(request, tracker)
+                if intent_to_trigger not in app.agent.domain.intents:
+                    raise ErrorResponse(
+                        404,
+                        "NotFound",
+                        f"The intent {trigger_intent} does not exist in the domain.",
+                    )
+                await app.agent.trigger_intent(
+                    intent_name=intent_to_trigger,
+                    entities=entities,
+                    output_channel=output_channel,
+                    tracker=tracker,
+                )
+        except ErrorResponse:
+            raise
+        except Exception as e:
+            logger.debug(traceback.format_exc())
+            raise ErrorResponse(
+                500, "ConversationError", f"An unexpected error occurred. Error: {e}"
+            )
+
         state = tracker.current_state(verbosity)
 
         response_body = {"tracker": state}
@@ -605,7 +683,7 @@ def create_app(
     async def predict(request: Request, conversation_id: Text):
         try:
             # Fetches the appropriate bot response in a json format
-            responses = app.agent.predict_next(conversation_id)
+            responses = await app.agent.predict_next(conversation_id)
             responses["scores"] = sorted(
                 responses["scores"], key=lambda k: (-k["score"], k["action"])
             )

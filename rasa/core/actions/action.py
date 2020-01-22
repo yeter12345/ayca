@@ -2,7 +2,7 @@ import copy
 import json
 import logging
 import typing
-from typing import List, Text, Optional, Dict, Any
+from typing import List, Text, Optional, Dict, Any, Generator
 
 import aiohttp
 
@@ -19,7 +19,7 @@ from rasa.core.constants import (
 from rasa.nlu.constants import (
     DEFAULT_OPEN_UTTERANCE_TYPE,
     OPEN_UTTERANCE_PREDICTION_KEY,
-    MESSAGE_SELECTOR_PROPERTY_NAME,
+    RESPONSE_SELECTOR_PROPERTY_NAME,
 )
 
 from rasa.core.events import (
@@ -37,12 +37,15 @@ if typing.TYPE_CHECKING:
     from rasa.core.domain import Domain
     from rasa.core.nlg import NaturalLanguageGenerator
     from rasa.core.channels.channel import OutputChannel
+    from rasa.core.events import SlotSet
 
 logger = logging.getLogger(__name__)
 
 ACTION_LISTEN_NAME = "action_listen"
 
 ACTION_RESTART_NAME = "action_restart"
+
+ACTION_SESSION_START_NAME = "action_session_start"
 
 ACTION_DEFAULT_FALLBACK_NAME = "action_default_fallback"
 
@@ -62,6 +65,7 @@ def default_actions() -> List["Action"]:
     return [
         ActionListen(),
         ActionRestart(),
+        ActionSessionStart(),
         ActionDefaultFallback(),
         ActionDeactivateForm(),
         ActionRevertFallbackEvents(),
@@ -76,7 +80,7 @@ def default_action_names() -> List[Text]:
     return [a.name() for a in default_actions()]
 
 
-def combine_user_with_default_actions(user_actions) -> list:
+def combine_user_with_default_actions(user_actions: List[Text]) -> List[Text]:
     # remove all user actions that overwrite default actions
     # this logic is a bit reversed, you'd think that we should remove
     # the action name from the default action names if the user overwrites
@@ -86,6 +90,14 @@ def combine_user_with_default_actions(user_actions) -> list:
     # action names from the users list instead of the defaults
     unique_user_actions = [a for a in user_actions if a not in default_action_names()]
     return default_action_names() + unique_user_actions
+
+
+def combine_with_templates(
+    actions: List[Text], templates: Dict[Text, Any]
+) -> List[Text]:
+    """Combines actions with utter actions listed in templates section"""
+    unique_template_names = [a for a in list(templates.keys()) if a not in actions]
+    return actions + unique_template_names
 
 
 def action_from_name(
@@ -197,7 +209,7 @@ class ActionRetrieveResponse(Action):
         """Query the appropriate response and create a bot utterance with that."""
 
         response_selector_properties = tracker.latest_message.parse_data[
-            MESSAGE_SELECTOR_PROPERTY_NAME
+            RESPONSE_SELECTOR_PROPERTY_NAME
         ]
 
         if self.intent_name_from_action() in response_selector_properties:
@@ -329,6 +341,49 @@ class ActionRestart(ActionUtterTemplate):
         evts = await super().run(output_channel, nlg, tracker, domain)
 
         return evts + [Restarted()]
+
+
+class ActionSessionStart(Action):
+    """Applies a conversation session start.
+
+    Takes all `SlotSet` events from the previous session and applies them to the new
+    session.
+    """
+
+    def name(self) -> Text:
+        return ACTION_SESSION_START_NAME
+
+    @staticmethod
+    def _slot_set_events_from_tracker(
+        tracker: "DialogueStateTracker",
+    ) -> List["SlotSet"]:
+        """Fetch SlotSet events from tracker and carry over key, value and metadata."""
+
+        from rasa.core.events import SlotSet
+
+        return [
+            SlotSet(key=event.key, value=event.value, metadata=event.metadata)
+            for event in tracker.applied_events()
+            if isinstance(event, SlotSet)
+        ]
+
+    async def run(
+        self,
+        output_channel: "OutputChannel",
+        nlg: "NaturalLanguageGenerator",
+        tracker: "DialogueStateTracker",
+        domain: "Domain",
+    ) -> List[Event]:
+        from rasa.core.events import SessionStarted
+
+        _events = [SessionStarted()]
+
+        if domain.session_config.carry_over_slots:
+            _events.extend(self._slot_set_events_from_tracker(tracker))
+
+        _events.append(ActionExecuted(ACTION_LISTEN_NAME))
+
+        return _events
 
 
 class ActionDefaultFallback(ActionUtterTemplate):

@@ -336,7 +336,7 @@ class Agent:
         interpreter: Optional[NaturalLanguageInterpreter] = None,
         model_directory: Optional[Text] = None,
     ) -> None:
-        self.domain = domain
+        self.domain = self._create_domain(domain)
         self.policy_ensemble = policy_ensemble
 
         if interpreter:
@@ -486,11 +486,13 @@ class Agent:
             return await processor.handle_message(message)
 
     # noinspection PyUnusedLocal
-    def predict_next(self, sender_id: Text, **kwargs: Any) -> Optional[Dict[Text, Any]]:
+    async def predict_next(
+        self, sender_id: Text, **kwargs: Any
+    ) -> Optional[Dict[Text, Any]]:
         """Handle a single message."""
 
         processor = self.create_processor()
-        return processor.predict_next(sender_id)
+        return await processor.predict_next(sender_id)
 
     # noinspection PyUnusedLocal
     async def log_message(
@@ -517,6 +519,20 @@ class Agent:
         processor = self.create_processor()
         return await processor.execute_action(
             sender_id, action, output_channel, self.nlg, policy, confidence
+        )
+
+    async def trigger_intent(
+        self,
+        intent_name: Text,
+        entities: List[Dict[Text, Any]],
+        output_channel: OutputChannel,
+        tracker: DialogueStateTracker,
+    ) -> None:
+        """Trigger a user intent, e.g. triggered by an external event."""
+
+        processor = self.create_processor()
+        await processor.trigger_external_user_uttered(
+            intent_name, entities, tracker, output_channel,
         )
 
     async def handle_text(
@@ -577,6 +593,11 @@ class Agent:
     def continue_training(
         self, trackers: List[DialogueStateTracker], **kwargs: Any
     ) -> None:
+        warnings.warn(
+            "Continue training will be removed in the next release. It won't be "
+            "possible to continue the training, you should probably retrain instead.",
+            FutureWarning,
+        )
 
         if not self.is_core_ready():
             raise AgentNotReady("Can't continue training without a policy ensemble.")
@@ -776,6 +797,14 @@ class Agent:
     def persist(self, model_path: Text, dump_flattened_stories: bool = False) -> None:
         """Persists this agent into a directory for later loading and usage."""
 
+        if dump_flattened_stories:
+            warnings.warn(
+                "The `dump_flattened_stories` argument will be removed from "
+                "`Agent.persist` in the next release. Please dump your "
+                "training data separately if you need it to be part of the model.",
+                FutureWarning,
+            )
+
         if not self.is_core_ready():
             raise AgentNotReady("Can't persist without a policy ensemble.")
 
@@ -843,7 +872,7 @@ class Agent:
         )
 
     @staticmethod
-    def _create_domain(domain: Union[Domain, Text]) -> Domain:
+    def _create_domain(domain: Union[Domain, Text, None]) -> Domain:
 
         if isinstance(domain, str):
             domain = Domain.load(domain)

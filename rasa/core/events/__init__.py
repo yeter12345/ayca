@@ -1,10 +1,10 @@
+import json
+import logging
+import re
+
+import jsonpickle
 import time
 import typing
-
-import json
-import warnings
-import jsonpickle
-import logging
 import uuid
 from dateutil import parser
 from datetime import datetime
@@ -12,6 +12,12 @@ from typing import List, Dict, Text, Any, Type, Optional
 
 from rasa.core import utils
 from typing import Union
+
+from rasa.core.constants import (
+    IS_EXTERNAL,
+    EXTERNAL_MESSAGE_PREFIX,
+    ACTION_NAME_SENDER_ID_CONNECTOR_STR,
+)
 
 if typing.TYPE_CHECKING:
     from rasa.core.trackers import DialogueStateTracker
@@ -203,10 +209,10 @@ class UserUttered(Event):
     def __init__(
         self,
         text: Optional[Text] = None,
-        intent=None,
-        entities=None,
+        intent: Optional[Dict] = None,
+        entities: Optional[List[Dict]] = None,
         parse_data: Optional[Dict[Text, Any]] = None,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         input_channel: Optional[Text] = None,
         message_id: Optional[Text] = None,
         metadata: Optional[Dict] = None,
@@ -234,7 +240,7 @@ class UserUttered(Event):
     def _from_parse_data(
         text: Text,
         parse_data: Dict[Text, Any],
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         input_channel: Optional[Text] = None,
         message_id: Optional[Text] = None,
         metadata: Optional[Dict] = None,
@@ -331,6 +337,17 @@ class UserUttered(Event):
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
         tracker.latest_message = self
         tracker.clear_followup_action()
+
+    @staticmethod
+    def create_external(
+        intent_name: Text, entity_list: Optional[List[Dict[Text, Any]]] = None,
+    ) -> "UserUttered":
+        return UserUttered(
+            text=f"{EXTERNAL_MESSAGE_PREFIX}{intent_name}",
+            intent={"name": intent_name},
+            metadata={IS_EXTERNAL: True},
+            entities=entity_list or [],
+        )
 
 
 # noinspection PyProtectedMember
@@ -438,7 +455,7 @@ class SlotSet(Event):
         self,
         key: Text,
         value: Optional[Any] = None,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ) -> None:
         self.key = key
@@ -490,7 +507,7 @@ class SlotSet(Event):
         except KeyError as e:
             raise ValueError(f"Failed to parse set slot event. {e}")
 
-    def apply_to(self, tracker) -> None:
+    def apply_to(self, tracker: "DialogueStateTracker") -> None:
         tracker._set_slot(self.key, self.value)
 
 
@@ -516,7 +533,7 @@ class Restarted(Event):
     def as_story_string(self) -> Text:
         return self.type_name
 
-    def apply_to(self, tracker) -> None:
+    def apply_to(self, tracker: "DialogueStateTracker") -> None:
         from rasa.core.actions.action import (  # pytype: disable=pyi-error
             ACTION_LISTEN_NAME,
         )
@@ -580,37 +597,38 @@ class AllSlotsReset(Event):
 
 # noinspection PyProtectedMember
 class ReminderScheduled(Event):
-    """ Allows asynchronous scheduling of action execution.
-
-    As a side effect the message processor will schedule an action to be run
-    at the trigger date."""
+    """Schedules the asynchronous triggering of a user intent
+    (with entities if needed) at a given time."""
 
     type_name = "reminder"
 
     def __init__(
         self,
-        action_name: Text,
+        intent: Text,
         trigger_date_time: datetime,
+        entities: Optional[List[Dict]] = None,
         name: Optional[Text] = None,
         kill_on_user_message: bool = True,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ):
         """Creates the reminder
 
         Args:
-            action_name: name of the action to be scheduled
-            trigger_date_time: date at which the execution of the action
-                should be triggered (either utc or with tz)
-            name: id of the reminder. if there are multiple reminders with
-                 the same id only the last will be run
+            intent: Name of the intent to be triggered.
+            trigger_date_time: Date at which the execution of the action
+                should be triggered (either utc or with tz).
+            name: ID of the reminder. If there are multiple reminders with
+                 the same id only the last will be run.
+            entities: Entities that should be supplied together with the
+                 triggered intent.
             kill_on_user_message: ``True`` means a user message before the
-                 trigger date will abort the reminder
-            timestamp: creation date of the event
-            metadata: optional event metadata
+                 trigger date will abort the reminder.
+            timestamp: Creation date of the event.
+            metadata: Optional event metadata.
         """
-
-        self.action_name = action_name
+        self.intent = intent
+        self.entities = entities
         self.trigger_date_time = trigger_date_time
         self.kill_on_user_message = kill_on_user_message
         self.name = name if name is not None else str(uuid.uuid1())
@@ -619,7 +637,8 @@ class ReminderScheduled(Event):
     def __hash__(self) -> int:
         return hash(
             (
-                self.action_name,
+                self.intent,
+                self.entities,
                 self.trigger_date_time.isoformat(),
                 self.kill_on_user_message,
                 self.name,
@@ -632,87 +651,152 @@ class ReminderScheduled(Event):
         else:
             return self.name == other.name
 
-    def __str__(self) -> str:
+    def __str__(self) -> Text:
         return (
-            "ReminderScheduled("
-            "action: {}, trigger_date: {}, name: {}"
-            ")".format(self.action_name, self.trigger_date_time, self.name)
+            f"ReminderScheduled(intent: {self.intent}, trigger_date: {self.trigger_date_time}, "
+            f"entities: {self.entities}, name: {self.name})"
         )
 
-    def _data_obj(self) -> Dict[Text, Any]:
+    def scheduled_job_name(self, sender_id: Text) -> Text:
+        return (
+            f"[{hash(self.name)},{hash(self.intent)},{hash(str(self.entities))}]"
+            f"{ACTION_NAME_SENDER_ID_CONNECTOR_STR}"
+            f"{sender_id}"
+        )
+
+    def _properties(self) -> Dict[Text, Any]:
         return {
-            "action": self.action_name,
+            "intent": self.intent,
             "date_time": self.trigger_date_time.isoformat(),
+            "entities": self.entities,
             "name": self.name,
             "kill_on_user_msg": self.kill_on_user_message,
         }
 
     def as_story_string(self) -> Text:
-        props = json.dumps(self._data_obj())
+        props = json.dumps(self._properties())
         return f"{self.type_name}{props}"
 
     def as_dict(self) -> Dict[Text, Any]:
         d = super().as_dict()
-        d.update(self._data_obj())
+        d.update(self._properties())
         return d
 
     @classmethod
     def _from_story_string(cls, parameters: Dict[Text, Any]) -> Optional[List[Event]]:
 
         trigger_date_time = parser.parse(parameters.get("date_time"))
+
         return [
             ReminderScheduled(
-                parameters.get("action"),
+                parameters.get("intent"),
                 trigger_date_time,
-                parameters.get("name", None),
-                parameters.get("kill_on_user_msg", True),
-                parameters.get("timestamp"),
-                parameters.get("metadata"),
+                parameters.get("entities"),
+                name=parameters.get("name"),
+                kill_on_user_message=parameters.get("kill_on_user_msg", True),
+                timestamp=parameters.get("timestamp"),
+                metadata=parameters.get("metadata"),
             )
         ]
 
 
 # noinspection PyProtectedMember
 class ReminderCancelled(Event):
-    """Cancel all jobs with a specific name."""
+    """Cancel certain jobs."""
 
     type_name = "cancel_reminder"
 
     def __init__(
         self,
-        action_name: Text,
-        timestamp: Optional[int] = None,
+        name: Optional[Text] = None,
+        intent: Optional[Text] = None,
+        entities: Optional[List[Dict]] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ):
-        """
+        """Creates a ReminderCancelled event.
+
+        If all arguments are `None`, this will cancel all reminders.
+        are to be cancelled. If no arguments are supplied, this will cancel all reminders.
+
         Args:
-            action_name: name of the scheduled action to be cancelled
-            metadata: optional event metadata
+            name: Name of the reminder to be cancelled.
+            intent: Intent name that is to be used to identify the reminders to be cancelled.
+            entities: Entities that are to be used to identify the reminders to be cancelled.
+            timestamp: Optional timestamp.
+            metadata: Optional event metadata.
         """
 
-        self.action_name = action_name
+        self.name = name
+        self.intent = intent
+        self.entities = entities
         super().__init__(timestamp, metadata)
 
     def __hash__(self) -> int:
-        return hash(self.action_name)
+        return hash((self.name, self.intent, str(self.entities),))
 
-    def __eq__(self, other) -> bool:
-        return isinstance(other, ReminderCancelled)
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, ReminderCancelled):
+            return False
+        else:
+            return hash(self) == hash(other)
 
     def __str__(self) -> Text:
-        return f"ReminderCancelled(action: {self.action_name})"
+        return f"ReminderCancelled(name: {self.name}, intent: {self.intent}, entities: {self.entities})"
+
+    def cancels_job_with_name(self, job_name: Text, sender_id: Text) -> bool:
+        """Determines if this `ReminderCancelled` event should cancel the job with the given name.
+
+        Args:
+            job_name: Name of the job to be tested.
+            sender_id: The `sender_id` of the tracker.
+
+        Returns:
+            `True`, if this `ReminderCancelled` event should cancel the job with the given name,
+            and `False` otherwise.
+        """
+
+        match = re.match(
+            rf"^\[([\d\-]*),([\d\-]*),([\d\-]*)\]"
+            rf"({re.escape(ACTION_NAME_SENDER_ID_CONNECTOR_STR)}{re.escape(sender_id)})",
+            job_name,
+        )
+        if not match:
+            return False
+        name_hash, intent_hash, entities_hash = match.group(1, 2, 3)
+
+        # Cancel everything unless names/intents/entities are given to
+        # narrow it down.
+        return (
+            ((not self.name) or self._matches_name_hash(name_hash))
+            and ((not self.intent) or self._matches_intent_hash(intent_hash))
+            and ((not self.entities) or self._matches_entities_hash(entities_hash))
+        )
+
+    def _matches_name_hash(self, name_hash: Text) -> bool:
+        return str(hash(self.name)) == name_hash
+
+    def _matches_intent_hash(self, intent_hash: Text) -> bool:
+        return str(hash(self.intent)) == intent_hash
+
+    def _matches_entities_hash(self, entities_hash: Text) -> bool:
+        return str(hash(str(self.entities))) == entities_hash
 
     def as_story_string(self) -> Text:
-        props = json.dumps({"action": self.action_name})
+        props = json.dumps(
+            {"name": self.name, "intent": self.intent, "entities": self.entities}
+        )
         return f"{self.type_name}{props}"
 
     @classmethod
     def _from_story_string(cls, parameters: Dict[Text, Any]) -> Optional[List[Event]]:
         return [
             ReminderCancelled(
-                parameters.get("action"),
-                parameters.get("timestamp"),
-                parameters.get("metadata"),
+                parameters.get("name"),
+                parameters.get("intent"),
+                parameters.get("entities"),
+                timestamp=parameters.get("timestamp"),
+                metadata=parameters.get("metadata"),
             )
         ]
 
@@ -755,7 +839,7 @@ class StoryExported(Event):
     def __init__(
         self,
         path: Optional[Text] = None,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ):
         self.path = path
@@ -797,7 +881,7 @@ class FollowupAction(Event):
     def __init__(
         self,
         name: Text,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ) -> None:
         self.action_name = name
@@ -903,7 +987,7 @@ class ActionExecuted(Event):
         action_name: Text,
         policy: Optional[Text] = None,
         confidence: Optional[float] = None,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict] = None,
     ):
         self.action_name = action_name
@@ -972,7 +1056,7 @@ class AgentUttered(Event):
         self,
         text: Optional[Text] = None,
         data: Optional[Any] = None,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ) -> None:
         self.text = text
@@ -1035,7 +1119,7 @@ class Form(Event):
     def __init__(
         self,
         name: Optional[Text],
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ) -> None:
         self.name = name
@@ -1086,7 +1170,7 @@ class FormValidation(Event):
     def __init__(
         self,
         validate: bool,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ) -> None:
         self.validate = validate
@@ -1131,7 +1215,7 @@ class ActionExecutionRejected(Event):
         action_name: Text,
         policy: Optional[Text] = None,
         confidence: Optional[float] = None,
-        timestamp: Optional[int] = None,
+        timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
     ) -> None:
         self.action_name = action_name
@@ -1181,3 +1265,28 @@ class ActionExecutionRejected(Event):
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
         tracker.reject_action(self.action_name)
+
+
+class SessionStarted(Event):
+    """Mark the beginning of a new conversation session."""
+
+    type_name = "session_started"
+
+    def __hash__(self) -> int:
+        return hash(32143124320)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, SessionStarted)
+
+    def __str__(self) -> Text:
+        return "SessionStarted()"
+
+    def as_story_string(self) -> None:
+        logger.warning(
+            f"'{self.type_name}' events cannot be serialised as story strings."
+        )
+        return None
+
+    def apply_to(self, tracker: "DialogueStateTracker") -> None:
+        # noinspection PyProtectedMember
+        tracker._reset()

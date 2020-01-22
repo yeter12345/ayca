@@ -5,13 +5,13 @@ import logging
 import os
 import typing
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Text, Tuple, Union, Set
+from typing import Any, Dict, List, Optional, Text, Tuple, Union, Set, NamedTuple
 
 import rasa.core.constants
 import rasa.utils.common as common_utils
 import rasa.utils.io
 from rasa.cli.utils import bcolors
-from rasa.constants import DOMAIN_SCHEMA_FILE
+from rasa.constants import DOMAIN_SCHEMA_FILE, DEFAULT_CARRY_OVER_SLOTS_TO_NEW_SESSION
 from rasa.core import utils
 from rasa.core.actions import action  # pytype: disable=pyi-error
 from rasa.core.actions.action import Action  # pytype: disable=pyi-error
@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 PREV_PREFIX = "prev_"
 ACTIVE_FORM_PREFIX = "active_form_"
 
+CARRY_OVER_SLOTS_KEY = "carry_over_slots_to_new_session"
+SESSION_EXPIRATION_TIME_KEY = "session_expiration_time"
+SESSION_CONFIG_KEY = "session_config"
+
 if typing.TYPE_CHECKING:
     from rasa.core.trackers import DialogueStateTracker
 
@@ -45,6 +49,19 @@ class InvalidDomain(Exception):
     def __str__(self):
         # return message in error colours
         return bcolors.FAIL + self.message + bcolors.ENDC
+
+
+class SessionConfig(NamedTuple):
+    session_expiration_time: float  # in minutes
+    carry_over_slots: bool
+
+    @staticmethod
+    def default() -> "SessionConfig":
+        # TODO: 2.0, reconsider how to apply sessions to old projects
+        return SessionConfig(0, DEFAULT_CARRY_OVER_SLOTS_TO_NEW_SESSION)
+
+    def are_sessions_enabled(self) -> bool:
+        return self.session_expiration_time > 0
 
 
 class Domain:
@@ -106,9 +123,17 @@ class Domain:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "Domain":
-        utter_templates = cls.collect_templates(data.get("templates", {}))
+        utter_templates = cls.collect_templates(data.get("responses", {}))
+        if "templates" in data:
+            warnings.warn(
+                "Your domain file contains the key: 'templates'. This has been deprecated and renamed to 'responses'. The 'templates' key will no longer work in future versions of Rasa. Please replace 'templates' with 'responses'",
+                FutureWarning,
+            )
+            utter_templates = cls.collect_templates(data.get("templates", {}))
+
         slots = cls.collect_slots(data.get("slots", {}))
         additional_arguments = data.get("config", {})
+        session_config = cls._get_session_config(data.get(SESSION_CONFIG_KEY, {}))
         intents = data.get("intents", {})
 
         return cls(
@@ -118,8 +143,30 @@ class Domain:
             utter_templates,
             data.get("actions", []),
             data.get("forms", []),
+            session_config=session_config,
             **additional_arguments,
         )
+
+    @staticmethod
+    def _get_session_config(session_config: Dict) -> SessionConfig:
+        session_expiration_time = session_config.get(SESSION_EXPIRATION_TIME_KEY)
+
+        # TODO: 2.0 reconsider how to apply sessions to old projects and legacy trackers
+        if session_expiration_time is None:
+            warnings.warn(
+                "No tracker session configuration was found in the loaded domain. "
+                "Domains without a session config will automatically receive a "
+                "session expiration time of 60 minutes in Rasa version 2.0 if not "
+                "configured otherwise.",
+                FutureWarning,
+            )
+            session_expiration_time = 0
+
+        carry_over_slots = session_config.get(
+            CARRY_OVER_SLOTS_KEY, DEFAULT_CARRY_OVER_SLOTS_TO_NEW_SESSION
+        )
+
+        return SessionConfig(session_expiration_time, carry_over_slots)
 
     @classmethod
     def from_directory(cls, path: Text) -> "Domain":
@@ -169,6 +216,9 @@ class Domain:
             for key, val in config.items():  # pytype: disable=attribute-error
                 combined["config"][key] = val
 
+        if override or self.session_config == SessionConfig.default():
+            combined[SESSION_CONFIG_KEY] = domain_dict[SESSION_CONFIG_KEY]
+
         # intents is list of dicts
         intents_1 = {list(i.keys())[0]: i for i in combined["intents"]}
         intents_2 = {list(i.keys())[0]: i for i in domain_dict["intents"]}
@@ -183,7 +233,7 @@ class Domain:
         for key in ["entities", "actions", "forms"]:
             combined[key] = merge_lists(combined[key], domain_dict[key])
 
-        for key in ["templates", "slots"]:
+        for key in ["responses", "slots"]:
             combined[key] = merge_dicts(combined[key], domain_dict[key], override)
 
         return self.__class__.from_dict(combined)
@@ -278,6 +328,7 @@ class Domain:
         action_names: List[Text],
         form_names: List[Text],
         store_entities_as_slots: bool = True,
+        session_config: SessionConfig = SessionConfig.default(),
     ) -> None:
 
         self.intent_properties = self.collect_intent_properties(intents)
@@ -285,15 +336,17 @@ class Domain:
         self.form_names = form_names
         self.slots = slots
         self.templates = templates
+        self.session_config = session_config
 
         # only includes custom actions and utterance actions
-        self.user_actions = action_names
+        self.user_actions = action.combine_with_templates(action_names, templates)
+
         # includes all actions (custom, utterance, default actions and forms)
         self.action_names = (
-            action.combine_user_with_default_actions(action_names) + form_names
+            action.combine_user_with_default_actions(self.user_actions) + form_names
         )
-        self.store_entities_as_slots = store_entities_as_slots
 
+        self.store_entities_as_slots = store_entities_as_slots
         self._check_domain_sanity()
 
     def __hash__(self) -> int:
@@ -651,14 +704,17 @@ class Domain:
         return {slot.name: slot.persistence_info() for slot in self.slots}
 
     def as_dict(self) -> Dict[Text, Any]:
-        additional_config = {"store_entities_as_slots": self.store_entities_as_slots}
 
         return {
-            "config": additional_config,
+            "config": {"store_entities_as_slots": self.store_entities_as_slots},
+            SESSION_CONFIG_KEY: {
+                SESSION_EXPIRATION_TIME_KEY: self.session_config.session_expiration_time,
+                CARRY_OVER_SLOTS_KEY: self.session_config.carry_over_slots,
+            },
             "intents": [{k: v} for k, v in self.intent_properties.items()],
             "entities": self.entities,
             "slots": self._slot_definitions(),
-            "templates": self.templates,
+            "responses": self.templates,
             "actions": self.user_actions,  # class names of the actions
             "forms": self.form_names,
         }
