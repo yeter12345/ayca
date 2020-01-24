@@ -368,7 +368,7 @@ class MessageProcessor:
         elif not entities:
             entity_list = []
         else:
-            warnings.warn(
+            raise_warning(
                 f"Invalid entity specification: {entities}. Assuming no entities."
             )
             entity_list = []

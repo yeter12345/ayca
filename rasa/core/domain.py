@@ -129,9 +129,13 @@ class Domain:
     def from_dict(cls, data: Dict) -> "Domain":
         utter_templates = cls.collect_templates(data.get("responses", {}))
         if "templates" in data:
-            warnings.warn(
-                "Your domain file contains the key: 'templates'. This has been deprecated and renamed to 'responses'. The 'templates' key will no longer work in future versions of Rasa. Please replace 'templates' with 'responses'",
+            raise_warning(
+                "Your domain file contains the key: 'templates'. This has been "
+                "deprecated and renamed to 'responses'. The 'templates' key will "
+                "no longer work in future versions of Rasa. Please replace "
+                "'templates' with 'responses'",
                 FutureWarning,
+                docs="/core/domains/"
             )
             utter_templates = cls.collect_templates(data.get("templates", {}))
 
@@ -157,12 +161,13 @@ class Domain:
 
         # TODO: 2.0 reconsider how to apply sessions to old projects and legacy trackers
         if session_expiration_time is None:
-            warnings.warn(
+            raise_warning(
                 "No tracker session configuration was found in the loaded domain. "
                 "Domains without a session config will automatically receive a "
                 "session expiration time of 60 minutes in Rasa version 2.0 if not "
                 "configured otherwise.",
                 FutureWarning,
+                docs="/core/domains/#session-configuration"
             )
             session_expiration_time = 0
 

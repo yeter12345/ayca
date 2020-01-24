@@ -593,8 +593,8 @@ class Agent:
     def continue_training(
         self, trackers: List[DialogueStateTracker], **kwargs: Any
     ) -> None:
-        warnings.warn(
-            "Continue training will be removed in the next release. It won't be "
+        raise_warning(
+            "Continue training will be removed in the 2.0 release. It won't be "
             "possible to continue the training, you should probably retrain instead.",
             FutureWarning,
         )
@@ -798,9 +798,9 @@ class Agent:
         """Persists this agent into a directory for later loading and usage."""
 
         if dump_flattened_stories:
-            warnings.warn(
+            raise_warning(
                 "The `dump_flattened_stories` argument will be removed from "
-                "`Agent.persist` in the next release. Please dump your "
+                "`Agent.persist` in the 2.0 release. Please dump your "
                 "training data separately if you need it to be part of the model.",
                 FutureWarning,
             )

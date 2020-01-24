@@ -1,6 +1,7 @@
 import logging
 import os
 import typing
+import warnings
 from typing import Any, Dict, List, Optional, Text, Tuple
 
 import numpy as np
@@ -109,7 +110,12 @@ class SklearnIntentClassifier(Component):
 
             self.clf = self._create_classifier(num_threads, y)
 
-            self.clf.fit(X, y)
+            with warnings.catch_warnings():
+                # sklearn raises lots of
+                # "UndefinedMetricWarning: F - score is ill - defined"
+                # if there are few intent examples, this is needed to prevent it
+                warnings.simplefilter("ignore")
+                self.clf.fit(X, y)
 
     def _num_cv_splits(self, y) -> int:
         folds = self.component_config["max_cross_validation_folds"]
@@ -141,6 +147,7 @@ class SklearnIntentClassifier(Component):
             cv=cv_splits,
             scoring=self.component_config["scoring_function"],
             verbose=1,
+            iid=False
         )
 
     def process(self, message: Message, **kwargs: Any) -> None:

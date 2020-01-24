@@ -37,13 +37,11 @@ class EndToEndReader(MarkdownReader):
         self._regex_interpreter = RegexInterpreter()
 
     def _parse_item(self, line: Text) -> Optional["Message"]:
-        """Parses an md list item line based on the current section type.
+        f"""Parses an md list item line based on the current section type.
 
         Matches expressions of the form `<intent>:<example>. For the
         syntax of <example> see the Rasa docs on NLU training data:
-        {}/nlu/training-data-format/#markdown-format""".format(
-            DOCS_BASE_URL
-        )
+        {DOCS_BASE_URL}/nlu/training-data-format/#markdown-format"""
 
         # Match three groups:
         # 1) Potential "form" annotation
