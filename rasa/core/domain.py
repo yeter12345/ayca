@@ -135,7 +135,7 @@ class Domain:
                 "no longer work in future versions of Rasa. Please replace "
                 "'templates' with 'responses'",
                 FutureWarning,
-                docs="/core/domains/"
+                docs="/core/domains/",
             )
             utter_templates = cls.collect_templates(data.get("templates", {}))
 
@@ -167,7 +167,7 @@ class Domain:
                 "session expiration time of 60 minutes in Rasa version 2.0 if not "
                 "configured otherwise.",
                 FutureWarning,
-                docs="/core/domains/#session-configuration"
+                docs="/core/domains/#session-configuration",
             )
             session_expiration_time = 0
 

@@ -147,7 +147,7 @@ class SklearnIntentClassifier(Component):
             cv=cv_splits,
             scoring=self.component_config["scoring_function"],
             verbose=1,
-            iid=False
+            iid=False,
         )
 
     def process(self, message: Message, **kwargs: Any) -> None:

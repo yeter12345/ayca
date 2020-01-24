@@ -601,7 +601,7 @@ class CRFEntityExtractor(EntityExtractor):
                 f"does not match number of tokens ({len(tokens)}). Set "
                 f"'return_sequence' to true in the corresponding featurizer in order "
                 f"to make use of the features in 'CRFEntityExtractor'.",
-                docs="/nlu/components/#crfentityextractor"
+                docs="/nlu/components/#crfentityextractor",
             )
             return None
 

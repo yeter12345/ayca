@@ -181,7 +181,7 @@ class ConveRTFeaturizer(Featurizer):
                 f"corpus of conversations, this featurizer should only be "
                 f"used if your training data is in english language. "
                 f"However, you are training in '{config.language}'.",
-                docs="/nlu/components/#convertfeaturizer"
+                docs="/nlu/components/#convertfeaturizer",
             )
 
         batch_size = 64
