@@ -1,18 +1,17 @@
 import logging
 import os
 import shutil
+import warnings
 from types import TracebackType
-from typing import Any, Callable, Dict, List, Text, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Text, Type
 
 import rasa.core.utils
 import rasa.utils.io
+from rasa.cli import utils
+from rasa.cli.utils import bcolors
 from rasa.constants import (
-    GLOBAL_USER_CONFIG_PATH,
-    DEFAULT_LOG_LEVEL,
-    ENV_LOG_LEVEL,
-    DEFAULT_LOG_LEVEL_LIBRARIES,
-    ENV_LOG_LEVEL_LIBRARIES,
-)
+    DEFAULT_LOG_LEVEL, DEFAULT_LOG_LEVEL_LIBRARIES, ENV_LOG_LEVEL,
+    ENV_LOG_LEVEL_LIBRARIES, GLOBAL_USER_CONFIG_PATH, DOCS_BASE_URL)
 
 logger = logging.getLogger(__name__)
 
@@ -297,15 +296,34 @@ def lazy_property(function: Callable) -> Any:
     return _lazyprop
 
 
-import warnings
+def raise_warning(message: Text, category: Optional[Type[Warning]] = None, docs: Optional[Text] = None, **kwargs: Any) -> None:
+    """Emit a `warnings.warn` with sensible defaults and a colored warning msg."""
 
-# def _formatwarning(message, category, filename, lineno, line):
-#     raise NotImplementedError
+    original_formatter = warnings.formatwarning
 
-# def warn(message: Text, category = None, stacklevel: Optional[Text] = None, **kwargs):
-def raise_warn(message, category = None, stacklevel = 3, **kwargs):
-    # uncomment these lines once you've implemented a better _formatwarning
-    # og_format = warnings.formatwarning
-    # warnings.formatwarning = _formatwarning
-    warnings.warn(message, category=category, stacklevel=stacklevel, **kwargs)
-    # warnings.formatwarning = og_format 
+    def should_show_source_line():
+        if "stacklevel" not in kwargs:
+            if category == UserWarning or category is None:
+                return False
+            if category == FutureWarning:
+                return False
+        return True
+
+    def formatwarning(message, category, filename, lineno, line=None):
+        """Function to format a warning the standard way."""
+
+        if not should_show_source_line():
+            if docs:
+                line = f"More info at {DOCS_BASE_URL}{docs}"
+            else:
+                line = ""
+
+        msg = original_formatter(message, category, filename, lineno, line)
+        return utils.wrap_with_color(msg, color=bcolors.WARNING)
+
+    if category == DeprecationWarning and "stacklevel" not in kwargs:
+        kwargs["stacklevel"] = 3
+
+    warnings.formatwarning = formatwarning
+    warnings.warn(message, category=category, **kwargs)
+    warnings.formatwarning = original_formatter

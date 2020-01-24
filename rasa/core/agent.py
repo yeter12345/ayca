@@ -46,7 +46,7 @@ from rasa.model import (
     get_model,
 )
 from rasa.nlu.utils import is_url
-from rasa.utils.common import update_sanic_log_level
+from rasa.utils.common import raise_warning, update_sanic_log_level
 from rasa.utils.endpoints import EndpointConfig
 
 logger = logging.getLogger(__name__)
@@ -273,7 +273,7 @@ async def load_agent(
             )
 
         else:
-            warnings.warn("No valid configuration given to load agent.")
+            raise_warning("No valid configuration given to load agent.")
             return None
 
     except Exception as e:
@@ -463,7 +463,7 @@ class Agent:
         """Handle a single message."""
 
         if not isinstance(message, UserMessage):
-            warnings.warn(
+            raise_warning(
                 "Passing a text to `agent.handle_message(...)` is "
                 "deprecated. Rather use `agent.handle_text(...)`.",
                 DeprecationWarning,
@@ -651,7 +651,7 @@ class Agent:
                 unique_last_num_states = max_history
         elif unique_last_num_states < max_history:
             # possibility of data loss
-            warnings.warn(
+            raise_warning(
                 f"unique_last_num_states={unique_last_num_states} but "
                 f"maximum max_history={max_history}. "
                 f"Possibility of data loss. "
@@ -733,7 +733,7 @@ class Agent:
 
         from rasa.core import run
 
-        warnings.warn(
+        raise_warning(
             "Using `handle_channels` is deprecated. "
             "Please use `rasa.run(...)` or see "
             "`rasa.core.run.configure_app(...)` if you want to implement "
@@ -943,7 +943,7 @@ class Agent:
             model_archive = get_latest_model(model_path)
 
         if model_archive is None:
-            warnings.warn(f"Could not load local model in '{model_path}'.")
+            raise_warning(f"Could not load local model in '{model_path}'.")
             return Agent()
 
         working_directory = tempfile.mkdtemp()

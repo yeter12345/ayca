@@ -13,7 +13,7 @@ from rasa.importers.importer import TrainingDataImporter
 from rasa.importers import utils
 from rasa.nlu.training_data import TrainingData
 from rasa.core.training.structures import StoryGraph
-import rasa.utils.common
+from rasa.utils.common import raise_warning, mark_as_experimental_feature
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class MultiProjectImporter(TrainingDataImporter):
             "Selected projects: {}".format("".join([f"\n-{i}" for i in self._imports]))
         )
 
-        rasa.utils.common.mark_as_experimental_feature(
+        mark_as_experimental_feature(
             feature_name="MultiProjectImporter"
         )
 
@@ -67,7 +67,8 @@ class MultiProjectImporter(TrainingDataImporter):
             parent_directory = os.path.dirname(path)
             self._init_from_dict(config, parent_directory)
         else:
-            warnings.warn(f"'{path}' does not exist or is not a valid config file.")
+            raise_warning(
+                f"'{path}' does not exist or is not a valid config file.")
 
     def _init_from_dict(self, _dict: Dict[Text, Any], parent_directory: Text) -> None:
         imports = _dict.get("imports") or []

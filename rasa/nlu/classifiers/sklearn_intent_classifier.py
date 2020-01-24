@@ -1,18 +1,18 @@
 import logging
-import warnings
-import numpy as np
 import os
 import typing
 from typing import Any, Dict, List, Optional, Text, Tuple
 
-from rasa.nlu.featurizers.featurizer import sequence_to_sentence_features
+import numpy as np
 from rasa.nlu import utils
 from rasa.nlu.classifiers import LABEL_RANKING_LENGTH
 from rasa.nlu.components import Component
 from rasa.nlu.config import RasaNLUModelConfig
+from rasa.nlu.constants import DENSE_FEATURE_NAMES, TEXT_ATTRIBUTE
+from rasa.nlu.featurizers.featurizer import sequence_to_sentence_features
 from rasa.nlu.model import Metadata
 from rasa.nlu.training_data import Message, TrainingData
-from rasa.nlu.constants import DENSE_FEATURE_NAMES, TEXT_ATTRIBUTE
+from rasa.utils.common import raise_warning
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +88,11 @@ class SklearnIntentClassifier(Component):
         labels = [e.get("intent") for e in training_data.intent_examples]
 
         if len(set(labels)) < 2:
-            warnings.warn(
-                "Can not train an intent classifier. "
-                "Need at least 2 different classes. "
-                "Skipping training of intent classifier."
+            raise_warning(
+                "Can not train an intent classifier as there are not "
+                "enough intents. Need at least 2 different intents. "
+                "Skipping training of intent classifier.",
+                docs="/nlu/training-data-format/"
             )
         else:
             y = self.transform_labels_str2num(labels)
