@@ -79,8 +79,14 @@ async def test_log_unseen_feature(default_processor: MessageProcessor):
         default_processor._log_unseen_features(parsed)
     assert len(record) == 2
 
-    assert record[0].message.args[0].startswith("Interpreter parsed an intent 'dislike'")
-    assert record[1].message.args[0].startswith("Interpreter parsed an entity 'test_entity'")
+    assert (
+        record[0].message.args[0].startswith("Interpreter parsed an intent 'dislike'")
+    )
+    assert (
+        record[1]
+        .message.args[0]
+        .startswith("Interpreter parsed an entity 'test_entity'")
+    )
 
 
 @pytest.mark.parametrize("default_intent", DEFAULT_INTENTS)

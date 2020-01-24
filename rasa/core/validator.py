@@ -53,7 +53,7 @@ class Validator:
                     f"There is a message in the training data labelled with intent "
                     f"'{intent}'. This intent is not listed in your domain. You "
                     f"should need to add that intent to your domain file!",
-                    docs="/core/domains/"
+                    docs="/core/domains/",
                 )
                 everything_is_alright = False
 
@@ -105,7 +105,7 @@ class Validator:
                     f"The intent '{story_intent}' is used in your stories, but it "
                     f"is not listed in the domain file. You should add it to your "
                     f"domain file!",
-                    docs="/core/domains/"
+                    docs="/core/domains/",
                 )
                 everything_is_alright = False
 
@@ -147,7 +147,7 @@ class Validator:
                         f"The action is listed in your domains action list, but "
                         f"there is no template defined with this name. You should "
                         f"add a template with this key.",
-                        docs="/core/actions/#utterance-actions"
+                        docs="/core/actions/#utterance-actions",
                     )
                     everything_is_alright = False
 
@@ -182,7 +182,7 @@ class Validator:
                         f"but is not a valid utterance action. Please make sure "
                         f"the action is listed in your domain and there is a "
                         f"template defined with its name.",
-                        docs="/core/actions/#utterance-actions"
+                        docs="/core/actions/#utterance-actions",
                     )
                     everything_is_alright = False
                 stories_utterances.add(event.action_name)

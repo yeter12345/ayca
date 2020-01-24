@@ -8,17 +8,34 @@ from typing import Any, Dict, List, Optional, Text, Tuple, Union
 import numpy as np
 from rasa.core import jobs
 from rasa.core.actions.action import (
-    ACTION_LISTEN_NAME, ACTION_SESSION_START_NAME,
-    Action, ActionExecutionRejection)
+    ACTION_LISTEN_NAME,
+    ACTION_SESSION_START_NAME,
+    Action,
+    ActionExecutionRejection,
+)
 from rasa.core.channels.channel import (
-    CollectingOutputChannel, OutputChannel, UserMessage)
+    CollectingOutputChannel,
+    OutputChannel,
+    UserMessage,
+)
 from rasa.core.constants import (
-    USER_INTENT_BACK, USER_INTENT_OUT_OF_SCOPE, USER_INTENT_RESTART,
-    USER_INTENT_SESSION_START, UTTER_PREFIX)
+    USER_INTENT_BACK,
+    USER_INTENT_OUT_OF_SCOPE,
+    USER_INTENT_RESTART,
+    USER_INTENT_SESSION_START,
+    UTTER_PREFIX,
+)
 from rasa.core.domain import Domain
 from rasa.core.events import (
-    ActionExecuted, ActionExecutionRejected, BotUttered, Event, ReminderCancelled,
-    ReminderScheduled, SlotSet, UserUttered)
+    ActionExecuted,
+    ActionExecutionRejected,
+    BotUttered,
+    Event,
+    ReminderCancelled,
+    ReminderScheduled,
+    SlotSet,
+    UserUttered,
+)
 from rasa.core.interpreter import (
     INTENT_MESSAGE_PREFIX,
     NaturalLanguageInterpreter,
@@ -82,7 +99,7 @@ class MessageProcessor:
             raise_warning(
                 "No policy ensemble or domain set. Skipping action prediction "
                 "and execution.",
-                docs="/core/policies/"
+                docs="/core/policies/",
             )
             return None
 
@@ -112,7 +129,7 @@ class MessageProcessor:
             raise_warning(
                 "No policy ensemble or domain set. Skipping action prediction."
                 "You should set a policy before training a model.",
-                docs="/core/policies/"
+                docs="/core/policies/",
             )
             return None
 
@@ -385,7 +402,7 @@ class MessageProcessor:
                     f"Interpreter parsed an intent '{intent}' "
                     f"which is not defined in the domain. "
                     f"Please make sure all intents are listed in the domain.",
-                    docs="/core/domains"
+                    docs="/core/domains",
                 )
 
         entities = parse_data["entities"] or []
@@ -396,7 +413,7 @@ class MessageProcessor:
                     f"Interpreter parsed an entity '{entity}' "
                     f"which is not defined in the domain. "
                     f"Please make sure all entities are listed in the domain.",
-                    docs="/core/domains"
+                    docs="/core/domains",
                 )
 
     def _get_action(self, action_name) -> Optional[Action]:

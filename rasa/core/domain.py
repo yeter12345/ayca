@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Text, Tuple, Union
 
 import rasa.core.constants
-from rasa.utils.common import raise_warning, lazy_property, sort_list_of_dicts_by_first_key
+from rasa.utils.common import (
+    raise_warning,
+    lazy_property,
+    sort_list_of_dicts_by_first_key,
+)
 import rasa.utils.io
 from rasa.cli.utils import bcolors, wrap_with_color
 from rasa.constants import DEFAULT_CARRY_OVER_SLOTS_TO_NEW_SESSION, DOMAIN_SCHEMA_FILE
@@ -16,8 +20,12 @@ from rasa.core import utils
 from rasa.core.actions import action  # pytype: disable=pyi-error
 from rasa.core.actions.action import Action  # pytype: disable=pyi-error
 from rasa.core.constants import (
-    DEFAULT_KNOWLEDGE_BASE_ACTION, REQUESTED_SLOT, SLOT_LAST_OBJECT,
-    SLOT_LAST_OBJECT_TYPE, SLOT_LISTED_ITEMS)
+    DEFAULT_KNOWLEDGE_BASE_ACTION,
+    REQUESTED_SLOT,
+    SLOT_LAST_OBJECT,
+    SLOT_LAST_OBJECT_TYPE,
+    SLOT_LISTED_ITEMS,
+)
 from rasa.core.events import SlotSet, UserUttered
 from rasa.core.slots import Slot, UnfeaturizedSlot
 from rasa.utils.endpoints import EndpointConfig
@@ -590,7 +598,7 @@ class Domain:
                 f" excluded for intent '{intent_name}'."
                 f"Excluding takes precedence in this case. "
                 f"Please resolve that ambiguity.",
-                docs="/core/domains/#ignoring-entities-for-certain-intents"
+                docs="/core/domains/#ignoring-entities-for-certain-intents",
             )
 
         return entity_names.intersection(wanted_entities)
@@ -959,7 +967,7 @@ class Domain:
                     f"action in the domain file, but there is "
                     f"no matching utterance template. Please "
                     f"check your domain.",
-                    docs="/core/domains/#utterance-templates"
+                    docs="/core/domains/#utterance-templates",
                 )
 
     def is_empty(self) -> bool:

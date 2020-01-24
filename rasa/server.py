@@ -15,11 +15,18 @@ import rasa.utils.endpoints
 import rasa.utils.io
 from rasa import model
 from rasa.constants import (
-    DEFAULT_DOMAIN_PATH, DEFAULT_MODELS_PATH, DOCS_BASE_URL, MINIMUM_COMPATIBLE_VERSION)
+    DEFAULT_DOMAIN_PATH,
+    DEFAULT_MODELS_PATH,
+    DOCS_BASE_URL,
+    MINIMUM_COMPATIBLE_VERSION,
+)
 from rasa.core.agent import Agent, load_agent
 from rasa.core.brokers.broker import EventBroker
 from rasa.core.channels.channel import (
-    CollectingOutputChannel, OutputChannel, UserMessage)
+    CollectingOutputChannel,
+    OutputChannel,
+    UserMessage,
+)
 from rasa.core.domain import InvalidDomain
 from rasa.core.events import Event
 from rasa.core.lock_store import LockStore

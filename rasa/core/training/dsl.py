@@ -96,7 +96,7 @@ class StoryStepBuilder:
                     f"End or intermediate checkpoints "
                     f"do not support conditions! "
                     f"(checkpoint: {name})",
-                    docs="/core/stories/#checkpoints"
+                    docs="/core/stories/#checkpoints",
                 )
             additional_steps = []
             for t in self.current_steps:
@@ -306,7 +306,8 @@ class StoryFileReader:
         else:
             raise_warning(
                 f"Failed to parse action line '{line}'. Ignoring this line.",
-                docs="/core/stories/")
+                docs="/core/stories/",
+            )
             return "", {}
 
     async def process_lines(self, lines: List[Text]) -> List[StoryStep]:

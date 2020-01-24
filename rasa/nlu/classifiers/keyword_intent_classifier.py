@@ -64,7 +64,7 @@ class KeywordIntentClassifier(Component):
                     f"intent '{ex.get(INTENT_ATTRIBUTE)}', it will be removed "
                     f"from the list of keywords for both of them. "
                     f"Remove (one of) the duplicates from the training data.",
-                    docs="/nlu/components/#keyword-intent-classifier"
+                    docs="/nlu/components/#keyword-intent-classifier",
                 )
             else:
                 self.intent_keyword_map[ex.text] = ex.get(INTENT_ATTRIBUTE)
@@ -95,7 +95,7 @@ class KeywordIntentClassifier(Component):
                         f" '{keyword1}' will be removed from the list of keywords.\n"
                         "Remove (one of) the conflicting keywords from the"
                         " training data.",
-                        docs="/nlu/components/#keyword-intent-classifier"
+                        docs="/nlu/components/#keyword-intent-classifier",
                     )
         for intent, keyword in ambiguous_mappings:
             self.intent_keyword_map.pop(keyword)

@@ -527,7 +527,7 @@ class CRFEntityExtractor(EntityExtractor):
                     f"annotated training examples end at token "
                     f"boundaries (e.g. don't include trailing "
                     f"whitespaces or punctuation).",
-                    docs="/nlu/training-data-format/"
+                    docs="/nlu/training-data-format/",
                 )
                 collected = []
 

@@ -78,7 +78,7 @@ class EntitySynonymMapper(EntityExtractor):
             synonyms = None
             raise_warning(
                 f"Failed to load synonyms file from '{entity_synonyms_file}'.",
-                docs="/nlu/training-data-format/#entity-synonyms"
+                docs="/nlu/training-data-format/#entity-synonyms",
             )
         return cls(meta, synonyms)
 
@@ -106,7 +106,7 @@ class EntitySynonymMapper(EntityExtractor):
                         f"Check your training data and remove "
                         f"conflicting synonym definitions to "
                         f"prevent this from happening.",
-                        docs="/nlu/training-data-format/#entity-synonyms"
+                        docs="/nlu/training-data-format/#entity-synonyms",
                     )
 
                 self.synonyms[original] = replacement

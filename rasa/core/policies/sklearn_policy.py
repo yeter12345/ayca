@@ -18,6 +18,7 @@ from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
+
 # noinspection PyProtectedMember
 from sklearn.utils import shuffle as sklearn_shuffle
 

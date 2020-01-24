@@ -10,8 +10,13 @@ import rasa.utils.io
 from rasa.cli import utils
 from rasa.cli.utils import bcolors
 from rasa.constants import (
-    DEFAULT_LOG_LEVEL, DEFAULT_LOG_LEVEL_LIBRARIES, ENV_LOG_LEVEL,
-    ENV_LOG_LEVEL_LIBRARIES, GLOBAL_USER_CONFIG_PATH, DOCS_BASE_URL)
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_LOG_LEVEL_LIBRARIES,
+    ENV_LOG_LEVEL,
+    ENV_LOG_LEVEL_LIBRARIES,
+    GLOBAL_USER_CONFIG_PATH,
+    DOCS_BASE_URL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +301,12 @@ def lazy_property(function: Callable) -> Any:
     return _lazyprop
 
 
-def raise_warning(message: Text, category: Optional[Type[Warning]] = None, docs: Optional[Text] = None, **kwargs: Any) -> None:
+def raise_warning(
+    message: Text,
+    category: Optional[Type[Warning]] = None,
+    docs: Optional[Text] = None,
+    **kwargs: Any,
+) -> None:
     """Emit a `warnings.warn` with sensible defaults and a colored warning msg."""
 
     original_formatter = warnings.formatwarning
@@ -321,8 +331,14 @@ def raise_warning(message: Text, category: Optional[Type[Warning]] = None, docs:
         msg = original_formatter(message, category, filename, lineno, line)
         return utils.wrap_with_color(msg, color=bcolors.WARNING)
 
-    if category == DeprecationWarning and "stacklevel" not in kwargs:
-        kwargs["stacklevel"] = 3
+    if "stacklevel" not in kwargs:
+        # try to set useful defaults for the most common warning categories
+        if category == DeprecationWarning:
+            kwargs["stacklevel"] = 3
+        elif category == UserWarning:
+            kwargs["stacklevel"] = 2
+        elif category == FutureWarning:
+            kwargs["stacklevel"] = 3
 
     warnings.formatwarning = formatwarning
     warnings.warn(message, category=category, **kwargs)

@@ -10,5 +10,5 @@ class FileProducer(FileEventBroker):
         "`FileEventBroker` instead. `FileProducer` will be removed in "
         "future Rasa versions.",
         FutureWarning,
-        docs="/api/event-brokers/"
+        docs="/api/event-brokers/",
     )

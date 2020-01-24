@@ -110,7 +110,7 @@ class RegexInterpreter(NaturalLanguageInterpreter):
                 f"as a json object. Make sure the intent "
                 f"is followed by a proper json object. "
                 f"Error: {e}",
-                docs="/core/stories/"
+                docs="/core/stories/",
             )
             return []
 
@@ -127,7 +127,7 @@ class RegexInterpreter(NaturalLanguageInterpreter):
                 f"'{confidence_str}'. Make sure the intent confidence is an "
                 f"@ followed by a decimal number. "
                 f"Error: {e}",
-                docs="/core/stories/"
+                docs="/core/stories/",
             )
             return 0.0
 

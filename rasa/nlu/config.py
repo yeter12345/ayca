@@ -73,7 +73,7 @@ def component_config_from_pipeline(
             f"Tried to get configuration value for component "
             f"number {index} which is not part of your pipeline. "
             f"Returning `defaults`.",
-            docs="/nlu/choosing-a-pipeline/"
+            docs="/nlu/choosing-a-pipeline/",
         )
         return override_defaults(defaults, {})
 
@@ -185,7 +185,7 @@ class RasaNLUModelConfig:
             raise_warning(
                 f"Tried to set configuration value for component "
                 f"number {index} which is not part of the pipeline.",
-                docs="/nlu/choosing-a-pipeline/"
+                docs="/nlu/choosing-a-pipeline/",
             )
 
     def override(self, config) -> None:

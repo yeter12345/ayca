@@ -44,7 +44,7 @@ class RasaReader(JsonTrainingDataReader):
                 "putting all your examples "
                 "into the 'common_examples' section.",
                 FutureWarning,
-                docs="/nlu/training-data-format/"
+                docs="/nlu/training-data-format/",
             )
 
         all_examples = common_examples + intent_examples + entity_examples

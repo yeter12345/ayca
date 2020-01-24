@@ -659,7 +659,7 @@ class TrainingDataGenerator:
                 "All your story blocks start with some checkpoint. "
                 "There should be at least one story block "
                 "that starts without any checkpoint.",
-                docs="/core/stories/#stories"
+                docs="/core/stories/#stories",
             )
 
         # running through the steps first will result in only one warning
@@ -687,7 +687,7 @@ class TrainingDataGenerator:
                     f"Remove this checkpoint or add "
                     f"story blocks that end "
                     f"with this checkpoint.",
-                    docs="/core/stories/#checkpoints"
+                    docs="/core/stories/#checkpoints",
                 )
 
         for cp, block_name in collected_end:
@@ -698,5 +698,5 @@ class TrainingDataGenerator:
                     f"Remove this checkpoint or add "
                     f"story blocks that start "
                     f"with this checkpoint.",
-                    docs="/core/stories/#checkpoints"
+                    docs="/core/stories/#checkpoints",
                 )

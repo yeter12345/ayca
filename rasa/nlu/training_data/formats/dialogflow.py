@@ -43,7 +43,8 @@ class DialogflowReader(TrainingDataReader):
         if not examples_js:
             raise_warning(
                 f"No training examples found for dialogflow file {fn}!",
-                docs="/migrate-from/google-dialogflow-to-rasa/")
+                docs="/migrate-from/google-dialogflow-to-rasa/",
+            )
             return TrainingData()
         elif fformat == DIALOGFLOW_INTENT:
             return self._read_intent(root_js, examples_js)

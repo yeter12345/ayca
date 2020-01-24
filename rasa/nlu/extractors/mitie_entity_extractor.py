@@ -106,9 +106,11 @@ class MitieEntityExtractor(EntityExtractor):
                 # if the token is not aligned an exception will be raised
                 start, end = MitieEntityExtractor.find_entity(ent, text, tokens)
             except ValueError as e:
-                raise_warning(f"Failed to use example '{text}' to train MITIE "
-                              f"entity extractor. Example will be skipped."
-                              f"Error: {e}")
+                raise_warning(
+                    f"Failed to use example '{text}' to train MITIE "
+                    f"entity extractor. Example will be skipped."
+                    f"Error: {e}"
+                )
                 continue
             try:
                 # mitie will raise an exception on malicious

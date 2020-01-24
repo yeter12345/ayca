@@ -112,7 +112,7 @@ class PolicyEnsemble:
                     f"in PolicyEnsemble. When personalizing "
                     f"priorities, be sure to give all policies "
                     f"different priorities.",
-                    docs="/core/policies/"
+                    docs="/core/policies/",
                 )
 
     def train(

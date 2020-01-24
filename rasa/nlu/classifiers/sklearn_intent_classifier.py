@@ -92,7 +92,7 @@ class SklearnIntentClassifier(Component):
                 "Can not train an intent classifier as there are not "
                 "enough intents. Need at least 2 different intents. "
                 "Skipping training of intent classifier.",
-                docs="/nlu/training-data-format/"
+                docs="/nlu/training-data-format/",
             )
         else:
             y = self.transform_labels_str2num(labels)

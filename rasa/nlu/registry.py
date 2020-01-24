@@ -186,7 +186,7 @@ def get_component_class(component_name: Text) -> Type["Component"]:
                 f"you should change it to its new class name: "
                 f"`{old_style_names[component_name]}`.",
                 FutureWarning,
-                docs="/nlu/components/"
+                docs="/nlu/components/",
             )
             component_name = old_style_names[component_name]
 

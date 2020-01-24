@@ -212,4 +212,3 @@ def get_test_client(server):
     test_client = server.test_client
     test_client.port = None
     return test_client
-

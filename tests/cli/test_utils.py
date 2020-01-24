@@ -103,4 +103,3 @@ def test_validate_with_invalid_directory_if_default_is_valid(caplog: LogCaptureF
 def test_print_error_and_exit():
     with pytest.raises(SystemExit):
         rasa.cli.utils.print_error_and_exit("")
-

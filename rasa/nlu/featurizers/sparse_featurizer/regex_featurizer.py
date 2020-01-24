@@ -11,7 +11,12 @@ import scipy.sparse
 from rasa.nlu import utils
 from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.constants import (
-    CLS_TOKEN, RESPONSE_ATTRIBUTE, SPARSE_FEATURE_NAMES, TEXT_ATTRIBUTE, TOKENS_NAMES)
+    CLS_TOKEN,
+    RESPONSE_ATTRIBUTE,
+    SPARSE_FEATURE_NAMES,
+    TEXT_ATTRIBUTE,
+    TOKENS_NAMES,
+)
 from rasa.nlu.featurizers.featurizer import Featurizer
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.utils.common import raise_warning
@@ -126,7 +131,7 @@ class RegexFeaturizer(Featurizer):
                 f"Directly including lookup tables as a list is deprecated since Rasa "
                 f"1.6.",
                 FutureWarning,
-                docs="/nlu/training-data-format/#lookup-tables"
+                docs="/nlu/training-data-format/#lookup-tables",
             )
 
         # otherwise it's a file path.

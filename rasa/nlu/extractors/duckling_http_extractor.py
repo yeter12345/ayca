@@ -184,7 +184,7 @@ class DucklingHTTPExtractor(EntityExtractor):
                 "`url` configuration in the config "
                 "file nor is `RASA_DUCKLING_HTTP_URL` "
                 "set as an environment variable. No entities will be extracted!",
-                docs="/nlu/components/#ducklinghttpextractor"
+                docs="/nlu/components/#ducklinghttpextractor",
             )
 
         extracted = self.add_extractor_name(extracted)

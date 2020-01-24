@@ -110,7 +110,7 @@ class MappingPolicy(Policy):
                         f"MappingPolicy tried to predict unknown "
                         f"action '{action}'. Make sure all mapped actions are "
                         f"listed in the domain.",
-                        docs="/core/policies/#mapping-policy"
+                        docs="/core/policies/#mapping-policy",
                     )
                 else:
                     prediction[idx] = 1
