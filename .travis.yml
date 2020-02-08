@@ -12,7 +12,6 @@ env:
   global:
   - BOTO_CONFIG=/dev/null
   - PIP_USE_PEP517=false
-
 install:
   # The instructions listed here should be equivalent to the ones
   # listed in README.md!
@@ -21,10 +20,9 @@ install:
   # dependencies in requirements-dev.txt (ninja 1.9.0.post1).  For the
   # moment, use pip 19 to install them.
   - python -m pip install -U 'pip<20'
-  - pip install -r requirements-dev.txt
-  - pip install -e .
+  - pip install poetry~=1.0.3
+  - poetry install
   - make prepare-tests-ubuntu
-  - pip list
 before_script:
   - mkdir $HOME/tmp
   - export TMPDIR=$HOME/tmp
