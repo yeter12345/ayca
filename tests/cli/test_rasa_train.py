@@ -322,7 +322,7 @@ def test_train_help(run):
     help_text = """usage: rasa train [-h] [-v] [-vv] [--quiet] [--data DATA [DATA ...]]
                   [-c CONFIG] [-d DOMAIN] [--out OUT]
                   [--augmentation AUGMENTATION] [--debug-plots]
-                  [--dump-stories] [--fixed-model-name FIXED_MODEL_NAME]
+                  [--fixed-model-name FIXED_MODEL_NAME]
                   [--persist-nlu-data] [--force]
                   {core,nlu} ..."""
 
@@ -351,7 +351,7 @@ def test_train_core_help(run: Callable[..., RunResult]):
     help_text = """usage: rasa train core [-h] [-v] [-vv] [--quiet] [-s STORIES] [-d DOMAIN]
                        [-c CONFIG [CONFIG ...]] [--out OUT]
                        [--augmentation AUGMENTATION] [--debug-plots]
-                       [--dump-stories] [--force]
+                       [--force]
                        [--fixed-model-name FIXED_MODEL_NAME]
                        [--percentages [PERCENTAGES [PERCENTAGES ...]]]
                        [--runs RUNS]"""

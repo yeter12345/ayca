@@ -17,7 +17,7 @@ def test_interactive_help(run: Callable[..., RunResult]):
                         [--data DATA [DATA ...]] [--skip-visualization]
                         [--endpoints ENDPOINTS] [-c CONFIG] [-d DOMAIN]
                         [--out OUT] [--augmentation AUGMENTATION]
-                        [--debug-plots] [--dump-stories] [--force]
+                        [--debug-plots] [--force]
                         [--persist-nlu-data]
                         {core} ... [model-as-positional-argument]"""
 
@@ -34,7 +34,6 @@ def test_interactive_core_help(run: Callable[..., RunResult]):
                              [--skip-visualization] [--endpoints ENDPOINTS]
                              [-c CONFIG] [-d DOMAIN] [--out OUT]
                              [--augmentation AUGMENTATION] [--debug-plots]
-                             [--dump-stories]
                              [model-as-positional-argument]"""
 
     lines = help_text.split("\n")
