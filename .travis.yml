@@ -7,11 +7,11 @@ cache:
   - .pytype
 python: '3.6'
 env:
-  # needed to fix issues with boto during testing:
-  # https://github.com/travis-ci/travis-ci/issues/7940
   global:
-  - BOTO_CONFIG=/dev/null
-  - PIP_USE_PEP517=false
+    - BOTO_CONFIG=/dev/null
+    - PIP_USE_PEP517=false
+    - PYPI_USER=amn41
+    - secure: "OWe6Fd/tXcCNvRBMJvFIXtDpnA0rQMFE/rLrzEZqmR9KOZs5dfEu3Bb7SW/22iIsAxSUjvGlqlcdp+QBPAw1XiD17aAJYvbCxh+c6xo264PyHOIhKzac23vmEzFr97LT3LKRIr1wULqGN05wMPGdzK7QK03aXfIRneBOphHM7fbT0Hl8zBTL7YwSuaA+Xic67fIFcd75Ynq8SGP1Gmoyu7NFfWRGxhL5+tPR+iuGkGfGf6nOBl0h9bfwU3moR9cVIe3mrcllcp5TonxfDtS8i7Mgs/jxCyNqWP1PufaLZVM/iFG9s25Yzpy478EH0rhLPRWAfXnTVov/5KOMrVSc1jrrO3eyxVXxubwAemgd4RTT6tihzZunAdFVQL0NTT78uPpqofJrvI0HAFt+0jJz4Ok+KFSqHjTPqSmndD1CtFh3hdIRydpV+Yp/ixC3c60gPTT+hydFtg3nARk+BPdUed0iF8j0AnPfDzW5QNKsYYFudm7FfjdOtCIu/tdKckfdh2mk+q4PcqJtgz97gc8b+X3l87bJFNmIWAIGMpKzK788N+EB18JR4gIOi6WqynUJaeq965lNIoDQtCxI/w7iRegE3UlRf/WZXUgL8jgN6w/EQXJDGZBkBi7W51AXuVYMvh7YK94j1IvXar6oNhYFqjsYW02vLgnG8Nwx3YR1Zr8="
 install:
   # The instructions listed here should be equivalent to the ones
   # listed in README.md!
@@ -43,12 +43,12 @@ jobs:
     name: "Test 3.6"
     python: "3.6"
     script:
-      - make test
+    - make test
   - <<: *run-tests
     name: "Test 3.7"
     python: '3.7'
     after_success:
-      - coveralls   # only this version will submit results to coveralls
+    - poetry run coveralls   # only this version will submit results to coveralls
   - stage: integration
     name: "Test API specification"
     language: python
@@ -59,26 +59,12 @@ jobs:
     - swagger-cli validate docs/_static/spec/rasa.yml
   - stage: test
     name: "Test Docs"
-    install:
-    - pip install -r requirements.txt
-    - pip install -r requirements-docs.txt
-    - pip install -e .[sql]
-    - pip list
     script:
       # be strict about warnings --> they will be treated as errors
     - cd docs
     - make SPHINXOPTS="-W --keep-going -A html_theme=rasabaster" html
   - stage: docs
     if: fork = false AND branch = "master" # forked repository will skip building docs, only master & PRs to it
-    install:
-    - RASABASTER=rasabaster-0.7.23.tar.gz
-    - curl -sSL -o $RASABASTER "https://storage.googleapis.com/docs-theme/${RASABASTER}?q=$(date +%s%N)"
-    - pip install $RASABASTER
-    - pip install -r requirements.txt
-    - pip install --no-cache-dir -r requirements-docs.txt
-    - pip install git+https://${GITHUB_TOKEN}:x-oauth-basic@github.com/RasaHQ/sphinxcontrib-versioning.git@version_list
-    - pip install -e .
-    - pip list
     script:
     - eval "$(ssh-agent -s)"; touch docs_key; chmod 0600 docs_key
     - openssl aes-256-cbc
@@ -93,30 +79,21 @@ jobs:
     - git config --global user.name "Travis CI"
     - git remote set-url --push origin "git@github.com:$TRAVIS_REPO_SLUG"
     - export ${!TRAVIS*}
-    - sphinx-versioning push docs docs . -- -b dirhtml -A html_theme=rasabaster
+    - poetry run sphinx-versioning push docs docs . -- -b dirhtml -A html_theme=rasabaster
   - stage: deploy
     name: "Deploy to PyPI"
     python: 3.6
     if: tag IS present
-    env:
-      # GH_RELEASE_NOTES_TOKEN (github token on `rasabot` account. Used to publish releases to GH.)
-      - secure: "UMqL+B34LYbyXmflfzkIJ1rHTBHeVz/kO2v72iRg3kw0Nj3ddZLX/0Y6re9nKQHXbWhmBIlcUd7/eDxEugTATjIW+cX7psShA58u5WqTTnqMsdi7HDnPVYWhBxIsJ9u5l7WSY2gsTEEHshDaCDVEp6GdMdosRavYNPAL2NJJJ9UWcLzajp57yG34wnW4G/jOMOzCBhwuQBm35bHQ3r6/+7RFfiT0PK6VsJkBjkvWqkCWaT/JJjY6D0EQ4FUJJvcQKG+hV6PmXRfQ2p46BXHSNkCNN99zm2lVsYO604DtmcxHOnGS4zM4VEXIOf8VfvTtanNbi/Yw4yJ9uXPkEnkR5aP8BTB4HkvHEzBirmPHcXYPoGY4zd5wnaHsH3HU0ODycaYddHO2EOAHncwIzB94LRVfZ0y7kZXvgJ7Bj0FCF8Z6ompLk3At6T7NVUGhU07oB0fNKmM7HiXwT9/t1SWSGMapkEbfwTw9aOfLye83rZdnGWdW7PxaAvVZC2Cq6BQ5/b3RjywbqKE/nClz0kX1BG6L6byPjhCFAiDl/KMVGfBnDyZRVoF/S1LedugJd6+O8E7Zv1+1UENLjZs1BhDVnZ1NP95vtoPKcWRvDE6LXNagDrlxJHNPmaTPJXPlTcM/6x9UQ0cltg9v9a4FCgQdR7PLYeobcVS5hDkTm1wOfSQ="
-    addons:
-      apt:
-        packages:
-          # required by scripts/publish_gh_release_notes.py
-          - pandoc
-    install: pip install -U github3.py pypandoc
+    install: poetry install --extras gh-release-notes
     script: skip
+    before_deploy:
+    - poetry config http-basic.pypi $PYPI_USER $PYPI_PASSWORD
+    - poetry build
     deploy:
-      provider: pypi
-      user: amn41
-      # server: https://test.pypi.org/legacy/
+    - provider: script
+      script: poetry publish
       on:
-        tags: true
-      distributions: "sdist bdist_wheel"
-      password:
-        secure: "MeL1Ve97eBY+VbNWuQNuLzkPs0TPc+Zh8OfZkhw69ez5imsiWpvp0LrUOLVW3CcC0vNTANEBOVX/n1kHxfcqkf/cChNqAkZ6zTMmvR9zHDwQxXVGZ3jEQSQM+fHdQpjwtH7BwojyxaCIC/5iza7DFMcca/Q6Xr+atdTd0V8Q7Nc5jFHEQf3/4oIIm6YeCUiHcEu981LRdS04+jvuFUN0Ejy+KLukGVyIWyYDjjGjs880Mj4J1mgmCihvVkJ1ujB65rYBdTjls3JpP3eTk63+xH8aHilIuvqB8TDYih8ovE/Vv6YwLI+u2HoEHAtBD4Ez3r71Ju6JKJM7DhWb5aurN4M7K6DC8AvpUl+PsJbNP4ZeW2jXMH6lT6qXKVaSw7lhZ0XY3wunyVcAbArX4RS0B9pb1nHBYUBWZjxXtr8lhkpGFu7H43hw63Y19qb8z4+1cGnijgz1mqXSAssuc+3r0W0cSr+OsCjmOs7cwT6HMQvPEKxLohwBOS/I3EbuKQOYMjFN5BWP5JXbsG45awV9tquxEW8zxjMetR+AOcYoyrDeiR8sAnj1/F99DE0bL1KyW/G5VNu2Xi/c+0M3KvP3+F8XTCuUY/5zTvqh1Qz1jcdiwsiAhO4eBQzQnjeFlxdiVeue2kmD5qsh+VLKKuKLfyVoaV7b1kBlAtBDu7+hDpA="
+        branch: master
     after_deploy:
-    - python3 scripts/publish_gh_release_notes.py
-    - ./scripts/ping_slack_about_package_release.sh
+    - poetry run python scripts/publish_gh_release_notes.py
+    - poetry run python scripts/ping_slack_about_package_release.sh
